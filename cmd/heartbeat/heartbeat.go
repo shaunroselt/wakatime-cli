@@ -35,27 +35,7 @@ func Run(v *viper.Viper) (int, error) {
 
 	err = SendHeartbeats(v, queueFilepath)
 	if err != nil {
-		var errauth api.ErrAuth
-
-		// api.ErrAuth represents an error when parsing api key.
-		// Save heartbeats to offline db even when api key invalid.
-		// It avoids losing heartbeats when api key is invalid.
-		if errors.As(err, &errauth) {
-			if err := offlinecmd.SaveHeartbeats(v, nil, queueFilepath); err != nil {
-				log.Errorf("failed to save heartbeats to offline queue: %s", err)
-			}
-
-			return errauth.ExitCode(), fmt.Errorf("sending heartbeat(s) failed: %s", errauth.Message())
-		}
-
-		if errwaka, ok := err.(wakaerror.Error); ok {
-			return errwaka.ExitCode(), fmt.Errorf("sending heartbeat(s) failed: %s", errwaka.Message())
-		}
-
-		return exitcode.ErrGeneric, fmt.Errorf(
-			"sending heartbeat(s) failed: %w",
-			err,
-		)
+		return handleHeartbeatError(v, queueFilepath, err)
 	}
 
 	log.Debugln("successfully sent heartbeat(s)")
@@ -281,4 +261,33 @@ func setLogFields(params paramscmd.Params) {
 	if params.Heartbeat.IsWrite != nil {
 		log.WithField("is_write", params.Heartbeat.IsWrite)
 	}
+}
+
+func handleHeartbeatError(v *viper.Viper, queueFilepath string, err error) (int, error) {
+	var errauth api.ErrAuth
+
+	// api.ErrAuth represents an error when parsing api key.
+	// Save heartbeats to offline db even when api key invalid.
+	// It avoids losing heartbeats when api key is invalid.
+	if errors.As(err, &errauth) {
+		if err := offlinecmd.SaveHeartbeats(v, nil, queueFilepath); err != nil {
+			log.Errorf("failed to save heartbeats to offline queue: %s", err)
+		}
+
+		return errauth.ExitCode(), fmt.Errorf("sending heartbeat(s) failed: %s", errauth.Message())
+	}
+
+	if errbackoff, ok := err.(api.ErrBackoff); ok {
+		log.Debugf("sending heartbeat(s) failed: %s", errbackoff.Message())
+		return errbackoff.ExitCode(), nil
+	}
+
+	if errwaka, ok := err.(wakaerror.Error); ok {
+		return errwaka.ExitCode(), fmt.Errorf("sending heartbeat(s) failed: %s", errwaka.Message())
+	}
+
+	return exitcode.ErrGeneric, fmt.Errorf(
+		"sending heartbeat(s) failed: %w",
+		err,
+	)
 }

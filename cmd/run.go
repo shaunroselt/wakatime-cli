@@ -331,11 +331,13 @@ func saveHeartbeats(v *viper.Viper) {
 func sendDiagnostics(v *viper.Viper, d diagnostics) error {
 	paramAPI, err := params.LoadAPIParams(v)
 	if err != nil {
-		var errauth api.ErrAuth
+		// Prevent sending diags for api key errors
+		if !errors.As(err, &api.ErrAuth{}) {
+			return fmt.Errorf("failed to load API parameters: %s", err)
+		}
 
-		// api.ErrAuth represents an error when parsing api key.
-		// In this context api key is not required to send diagnostics.
-		if !errors.As(err, &errauth) {
+		// Prevent sending diags for api connection errors
+		if !errors.As(err, &api.ErrBackoff{}) {
 			return fmt.Errorf("failed to load API parameters: %s", err)
 		}
 	}
