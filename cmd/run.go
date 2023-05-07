@@ -336,7 +336,7 @@ func sendDiagnostics(v *viper.Viper, d diagnostics) error {
 			return fmt.Errorf("failed to load API parameters: %s", err)
 		}
 
-		// Prevent sending diags for api connection errors
+		// Prevent sending diags for api connection errors.
 		if !errors.As(err, &api.ErrBackoff{}) {
 			return fmt.Errorf("failed to load API parameters: %s", err)
 		}
