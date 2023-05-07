@@ -801,6 +801,7 @@ func TestSendHeartbeats_ErrBackoff(t *testing.T) {
 
 	err = cmdheartbeat.SendHeartbeats(v, offlineQueueFile.Name())
 	require.Error(t, err)
+	assert.ErrorAs(t, err, &api.ErrBackoff{})
 
 	assert.Equal(t, 0, numCalls)
 
@@ -865,6 +866,7 @@ func TestSendHeartbeats_ErrBackoff_Verbose(t *testing.T) {
 
 	err = cmdheartbeat.SendHeartbeats(v, offlineQueueFile.Name())
 	require.Error(t, err)
+	assert.ErrorAs(t, err, &api.ErrBackoff{})
 
 	assert.Equal(t, 0, numCalls)
 
